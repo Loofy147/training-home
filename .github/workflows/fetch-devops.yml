@@ -1,0 +1,55 @@
+name: Fetch DevOps Exercises
+
+on:
+  workflow_dispatch: # تشغيل يدوي
+    inputs:
+      branch:
+        description: 'Branch to fetch code from (default: master)'
+        required: false
+        default: 'master'
+
+  schedule: # تشغيل تلقائي أسبوعي (كل يوم اثنين الساعة 12:00 UTC)
+    - cron: '0 12 * * 1'
+
+jobs:
+  fetch-content:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout your repository
+      - name: Checkout your repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PERSONAL_TOKEN }}
+
+      # تعيين الفرع (للجدولة فقط، لأن schedule لا يدعم inputs)
+      - name: Set branch (for scheduled runs)
+        if: github.event_name == 'schedule'
+        run: echo "branch=master" >> $GITHUB_ENV
+
+      - name: Set branch (for manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "branch=${{ github.event.inputs.branch }}" >> $GITHUB_ENV
+
+      # Clone the DevOps Exercises repository
+      - name: Clone DevOps Exercises Repository
+        run: |
+          git clone --branch $branch https://github.com/bregman-arie/devops-exercises.git devops-exercises
+
+      # Copy files to your repo
+      - name: Copy Files from DevOps Exercises
+        run: |
+          mkdir -p ./learning-materials
+          cp -r ./devops-exercises/* ./learning-materials/
+
+      # Commit and Push changes
+      - name: Commit and Push Changes
+        env:
+          TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          git config --global user.name "Loofy147"
+          git config --global user.email "ebh.ceo213@gmail.com"
+          git remote set-url origin https://Loofy147:${TOKEN}@github.com/Loofy147/training-home.git
+          git add ./learning-materials/
+          git commit -m "Sync learning materials from DevOps Exercises" || echo "No changes to commit"
+          git push origin HEAD
